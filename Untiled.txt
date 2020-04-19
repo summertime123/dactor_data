@@ -1,0 +1,81 @@
+#导入所需要的模块和库
+%matplotlib inline
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import json
+import demjson
+#读取数据并查看
+data=pd.read_csv("/home/summertime/Desktop/doctor_detail.csv",header=0)
+data
+#新建空列表用于存放json数据解析一些结果
+lit_name=[]
+lit_url=[]
+lit_depart=[]
+lit_num=[]
+#解析json数据并放到列表
+department_series=data['department']
+for tmp_department_list in department_series:
+    tmp_department_json=demjson.decode(tmp_department_list)
+    if len(tmp_department_json)>0:	#排除解析结果为空的内容
+        for tmp_department in tmp_department_json:
+            print(tmp_department['department'])
+            department=tmp_department['department']
+            lit_depart.append(department)
+            print(tmp_department['hospital'])
+            hospital=tmp_department['hospital']
+            hospital_name=hospital['name']
+            lit_name.append(hospital_name)
+            hospital_url=hospital['url']
+            lit_url.append(hospital_url)
+            lit_num.append(1)
+            print(hospital_name)
+            print(hospital_url)
+#将列表值转换为DataFrame对象并打印
+name_df=pd.DataFrame(lit_name,columns=['hospital_name'])
+url_df=pd.DataFrame(lit_url,columns=['hospital_url'])
+depart_df=pd.DataFrame(lit_depart,columns=['hospital_department'])
+num_df=pd.DataFrame(lit_num,columns=['number'])
+print(name_df)
+print(url_df)
+print(depart_df)
+print(num_df)
+#将解析完数据和原数据连接并查看
+data=pd.concat([data,name_df,url_df,depart_df,num_df],axis=1)
+data
+#查看职称，医院，科室种类
+print("total have{}position,they are".format(len(data["position"].unique())))
+data["position"].unique()
+print("total have{}hospition,they are".format(len(data["hospital_name"].unique())))
+data["hospital_name"].unique()
+print("total have{}department,they are".format(len(data["hospital_department"].unique())))
+data['hospital_department'].unique()
+#用透视表医院职称数量
+data1=pd.DataFrame(data.pivot_table(index='hospital_name',columns='position',values='number',aggfunc='sum'))
+data1
+#计算医院医生总数并排序
+data1['col_sum']=data1.apply(lambda x: x.sum(),axis=1)
+data_01=data1.sort_values(by='col_sum',ascending=False)
+data_01
+#计算医院科室数量并排序
+data_02=pd.DataFrame(data.groupby('hospital_name')['department'].count().sort_values(ascending=False))
+data_02
+#计算医院职称并排序
+data_03=pd.DataFrame(data.groupby('position')['number'].sum().sort_values(ascending=False))
+data_03
+#画出前十科室和职称柱状图图
+pic_02=data_02[:10].plot(kind='bar')
+pic_03=data_03[:10].plot(kind='bar')
+#保存结果为xlsx
+#第一个结果
+writer=pd.ExcelWriter('doctor_data_01.xlsx')
+data_01.to_excel(writer,'hospital_position')
+writer.save()
+#第二个结果
+writer=pd.ExcelWriter('doctor_data_02.xlsx')
+data_02.to_excel(writer,'hospital_depart')
+writer.save()
+#第三个结果
+writer=pd.ExcelWriter('doctor_data_03.xlsx')
+data_03.to_excel(writer,'position')
+writer.save()
